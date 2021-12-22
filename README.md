@@ -1,7 +1,10 @@
 # deploy-awx-minicube-inviroment
 
-This project contains the code to deploy AWX inviroments on K8s / minikube with nginx Reverse Proxy.
-I will build this to an ansible role in future.
+This project contains the code to deploy AWX inviroments on minikube with nginx Reverse Proxy.
+I will build this to an ansible role in future.  
+
+After deployment AWX will be available at "YOUR-IP":443  
+Please note, if you have an active firewall on your system you may have to add a rule for port 443. 
 
 Requirement: CentOS7 / REHL  
 Tested on CentOS 7.9
