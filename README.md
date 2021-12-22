@@ -11,7 +11,7 @@ Requirement: CentOS7 / REHL
 Tested on CentOS 7.9
 
 ATTENTION:  
-Please change the default PW in deploy minikube for user minikube or define an other user!  
+Please change the default PW in deploy-minikube.yml for user minikube or define an other user!  
 And check ALL variables in ALL playbooks before you start deployment!
 
 1. run deploy-minikube.yml
