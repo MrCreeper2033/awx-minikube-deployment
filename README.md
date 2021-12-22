@@ -1,4 +1,4 @@
-# deploy-awx-minicube-inviroment
+# awx-minikube-deployment  
 
 This project contains the code to deploy AWX inviroments on minikube with nginx Reverse Proxy.
 I will build this to an ansible role in future.  
