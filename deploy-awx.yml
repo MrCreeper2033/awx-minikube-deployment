@@ -1,0 +1,61 @@
+---
+  - hosts: all
+    vars:
+      awx_env_file: awx-test.yml
+      awx_env: awx-test
+      namespace: awx
+      postresql_secret: posgtresql-config-secret.yml
+
+    tasks:
+      - name: copy "{{ awx_env_file }}"
+        copy:
+          src: "{{ awx_env_file }}"
+          dest: ~/{{ awx_env_file }}
+      
+#      - name: copy postgresql-secret-config
+#        copy:
+#          src: "{{ postresql_secret }}"
+#          dest: ~/{{ postresql_secret }}
+
+#      - name: deploy secret
+#        shell: minikube kubectl -- apply -f {{ postresql_secret }} -n {{ namespace }}
+#        args:
+#          chdir: ~/
+
+      - name: deploy "{{ awx_env_file }}" and wait to be Available
+        shell: minikube kubectl -- apply -f {{ awx_env_file }} -n {{ namespace }} -o json
+        args:
+          chdir: ~/
+      
+      - name: pause 5 Minutes to wait for deployment
+        pause: 
+          minutes: 5
+        
+      - name: get awx admin secret
+        shell: minikube kubectl -- get secret {{ awx_env}}-admin-password -o jsonpath="{.data.password}" -n {{ namespace }} | base64 --decode
+        register: admin_secret
+
+      - name: debug
+        debug:
+          msg: admin_secret.stdout[]
+
+#        register: _awx_status
+#        until:
+#          - _awx_status.stdout|from_json|json_query('status.conditions[0].type') == "Available"
+#          - _awx_status.stdout|from_json|json_query('status.conditions[0].status') == "True"
+#        retries: 40
+#        delay: 30
+
+
+#      - name: wait for awx to be Available
+#        shell: minikube kubectl -- get deployment {{ awx_env }} -n {{ namespace }} -o json
+#        register: _awx_status
+#        until:
+#          - _awx_status.stdout|from_json|json_query('status.conditions[0].type') == "Available"
+#          - _awx_status.stdout|from_json|json_query('status.conditions[0].status') == "True"
+#        retries: 40
+#        delay: 30
+
+#      - name: debug
+#        debug:
+#          msg: "{{ _awx_status }}"

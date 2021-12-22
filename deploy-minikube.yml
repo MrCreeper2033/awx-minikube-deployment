@@ -1,0 +1,125 @@
+---
+  - hosts: all
+    vars:
+      operator_version: 0.15.0
+      minikube_pass: "{{ minikube_password | default('92&WF$rBk?Ed5H[<') }}"
+      minikube_usr: "{{ minikube_user | default('minikube') }}"
+      minikube_grp: "{{ minikube_group | default('minikube') }}"
+      minikube_package_url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+    tasks:
+      - name: yum install git, yum-utils
+        yum:
+          name:
+            - git
+            - yum-utils
+        become: yes
+      
+      - name: Add docker repository
+        shell: yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+        become: yes
+
+      - name: install Docker-CE
+        yum:
+          name:
+            - docker-ce
+            - docker-ce-cli
+        become: yes
+
+      - name: enable and start docker service
+        service:
+          name: docker
+          enabled: yes 
+          state: started
+        become: yes
+
+      - name: "Ensure group 'docker', {{ minikube_grp }} exists"
+        become: true
+        group:
+          name: "{{ item  }}"
+          state: present
+        loop:
+            - docker
+            - "{{ minikube_grp }}"
+      
+      - name: "Add the user {{ minikube_usr }}"
+        become: true
+        user:
+          name: "{{ minikube_usr }}"
+          comment: "{{ minikube_usr }} user for minikube service"
+          password: "{{ minikube_pass | password_hash('sha512') }}"
+          create_home: True
+          group: "{{ minikube_grp }}"
+          shell: /bin/bash
+      
+      - name: "Add the user {{ minikube_usr }} to group 'docker'"
+        become: true
+        user:
+          name: "{{ minikube_usr }}"
+          groups: docker
+          append: yes
+      
+      - name: "Add user'{{ minikube_usr }} to sudo, creating /etc/sudoers.d/{{ minikube_usr }}"
+        become: true
+        lineinfile:
+          path: "/etc/sudoers.d/{{ minikube_usr }}"
+          line: "{{ minikube_usr }} ALL=(ALL) NOPASSWD: ALL"
+          state: present
+          mode: 0440
+          create: yes
+          validate: 'visudo -cf %s'
+      
+      - name: "Set includedir in sudoers"
+        become: true
+        lineinfile:
+          dest: /etc/sudoers
+          line: "#includedir /etc/sudoers.d"
+          state: present
+          validate: "/usr/sbin/visudo -cf %s"
+
+      - name: Grant SSH access for user
+        become: true
+        lineinfile:
+            path: /etc/security/access.conf
+            insertbefore: '^#@ End local entries'
+            line: '+ : {{ minikube_usr }}                       : ALL'
+
+      - name: download minikube
+        get_url:
+          url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+          dest: ~/
+
+      - name: install minikube
+        shell: sudo install ~/minikube-linux-amd64 /usr/bin/minikube
+
+      - name: Copy minikube systemd unit file
+        become: true
+        template:
+          src: minikube_service.j2
+          dest: "/etc/systemd/system/minikube.service"
+          mode: 0644
+          owner: root
+          group: root
+        register: systemd_minikube_template
+      
+      - name: Reload systemd daemon
+        become: true
+        systemd:
+          daemon_reload: true
+      
+      - name: "Start/enable minikube service"
+        become: true
+        service:
+          name: minikube
+          state: started
+          enabled: true
+
+      - name: "Make sure 'kubectl' is installed."
+        become: true
+        become_user: "{{ minikube_usr }}"
+        shell: minikube kubectl -- get pods -A
+        register: _list_pods
+
+      - name: "Return message from: pcs cluster setup"
+        debug: msg="{{ _list_pods.stdout.split('\n') | replace('\\t', '') }}"
+        when:
+          - _list_pods.stdout is defined

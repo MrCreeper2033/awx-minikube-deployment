@@ -1,0 +1,48 @@
+---
+  - hosts: all
+    vars:
+      operator_version: 0.15.0
+
+    tasks:
+      - name: download awx-operator
+        shell: git clone https://github.com/ansible/awx-operator.git
+
+      - name: git check out "{{ operator_version }}" 
+        shell: git checkout "{{ operator_version }}"
+        args:
+          chdir: ~/awx-operator
+
+      - name: Ansible replace string in Makefile
+        replace:
+          path: ~/awx-operator/Makefile
+          regexp: 'kubectl'
+          replace: "minikube kubectl --"
+
+      - name: deploy awx-operator
+        shell: make deploy
+        args:
+          chdir: ~/awx-operator
+
+      - name: "Wait for AWX Operator to be 'Available'"
+        shell: minikube kubectl -- get deployments awx-operator-controller-manager --namespace awx -o json
+        register: _awx_oper_status
+        until:
+          - _awx_oper_status.stdout|from_json|json_query('status.conditions[0].type') == "Available"
+          - _awx_oper_status.stdout|from_json|json_query('status.conditions[0].status') == "True"
+        retries: 40
+        delay: 30
+
+      - name: "Get AWX Operator status."
+        shell: minikube kubectl -- get deployments awx-operator-controller-manager --namespace awx
+        register: _awx_status
+        changed_when: false
+        failed_when: false
+        check_mode: no
+
+      - name: debug
+        debug:
+          msg: "{{ _awx_status.stdout.split('\n') | replace('\\t', '') }}"
+
+#      - name: debug
+#        debug:
+#          msg: "{{ _awx_oper_status }}"

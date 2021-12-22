@@ -1,0 +1,67 @@
+---
+  - hosts: all
+    vars:
+      awx_env: awx-test
+      namespace: awx
+      nginx_conf: awx.conf
+      server_ip: YOUR_IP
+      server_fqdn: YOUR_SERVER_FQDN
+      server_port: 443
+
+    tasks:
+      - name: install nginx
+        yum:
+          name: 
+            - nginx
+        become: yes
+
+      - name: enable and start nginx service
+        service:
+          name: nginx
+          enabled: yes 
+          state: started
+        become: yes
+
+      - name: copy config file
+        copy:
+          src: "{{ nginx_conf }}"
+          dest: /etc/nginx/conf.d
+        become: yes
+
+      - name: get minikube awx url
+        shell: minikube service --url "{{ awx_env }}"-service -n "{{ namespace }}"
+        register: service_url
+      
+      - name: set server ip in "{{ nginx_conf }}"
+        replace:
+          path: /etc/nginx/conf.d/{{ nginx_conf }}
+          regexp: 'SERVER_IP'
+          replace: "{{ server_ip }}:{{ server_port }}"
+        become: yes
+
+      - name: set server logname in "{{ nginx_conf }}"
+        replace:
+          path: /etc/nginx/conf.d/{{ nginx_conf }}
+          regexp: 'AWX_ENV'
+          replace: "{{ awx_env }}"
+        become: yes
+
+      - name: set server FQDN in "{{ nginx_conf }}"
+        replace:
+          path: /etc/nginx/conf.d/{{ nginx_conf }}
+          regexp: 'SERVER_FQDN'
+          replace: "{{ server_fqdn }}"
+        become: yes
+
+      - name: set service url in "{{ nginx_conf }}"
+        replace:
+          path: /etc/nginx/conf.d/{{ nginx_conf }}
+          regexp: 'URL_INPUT'
+          replace: "{{ service_url.stdout }}"
+        become: yes
+
+      - name: restart nginx
+        service:
+          name: nginx
+          state: restarted
+        become: yes
