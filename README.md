@@ -1,6 +1,7 @@
 # awx-minikube-deployment  
 
-This project contains the code to deploy AWX inviroments on minikube with nginx Reverse Proxy.
+This project contains the code to deploy AWX inviroments on minikube with nginx Reverse Proxy.  
+AWX will run in minikube; Nginx will run on your system  
 I will build this to an ansible role in future.  
 
 After deployment AWX will be available at "YOUR-IP":443  
